@@ -1,35 +1,34 @@
-﻿#ifndef FOURIER_PRICER_H
+#ifndef FOURIER_PRICER_H
 #define FOURIER_PRICER_H
 
 #include <complex>
 
-// Cette classe implémente la formule analytique (Fourier inverse) du prix d'une option Call
-// dans le modèle de Heston, tel que présenté dans la Proposition 3 de l'article de Leif Andersen.
+// This class implements the analytical formula (Fourier inversion) for pricing a Call option
+// in the Heston model, as presented in Proposition 3 of Leif Andersen's paper.
 
 class FourierPricer {
 public:
-    // Constructeur : initialise tous les paramètres du modèle de Heston
+    // Constructor: initializes all the parameters of the Heston model
     FourierPricer(double X0, double V0, double kappa, double theta,
         double epsilon, double rho, double T, double K);
 
-    // Calcule le prix exact de l'option call par quadrature sur l'intégrale de Fourier
+    // Computes the exact Call option price via quadrature over the Fourier integral
     double computePrice(int N = 10000, double integrationBound = 100.0);
 
 private:
-    // Paramètres du modèle
+    // Model parameters
     double X0, V0, kappa, theta, epsilon, rho, T, K;
-    double kappa_hat; // κ̂ = κ - ρε/2
+    double kappa_hat; // κ̂ = κ - ρ * ε / 2
 
-    // Fonctions internes pour calculer les quantités complexes de la formule
+    // Internal functions to compute the complex quantities in the formula
     std::complex<double> h1(std::complex<double> k);
     std::complex<double> h2(std::complex<double> k);
     std::complex<double> xi(std::complex<double> k);
     std::complex<double> d_plus(std::complex<double> k);
     std::complex<double> d_minus(std::complex<double> k);
 
-    // Fonction intégrande à évaluer dans l'intégrale de Fourier
+    // Integrand function to evaluate in the Fourier integral
     std::complex<double> integrand(double k);
 };
 
 #endif // FOURIER_PRICER_H
-
