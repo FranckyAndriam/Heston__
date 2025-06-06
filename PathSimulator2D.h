@@ -5,8 +5,10 @@
 #include <random>
 #include "Model2D.h"
 
+// PathSimulator2D.h
 class PathSimulator2D {
 public:
+	// Constructeur pour simuler un chemin 2D avec un modèle donné. Ici model est un pointeur vers une instance de Model2D.
     PathSimulator2D(const std::vector<double>& time_points, double S0, double V0, const Model2D& model);
     PathSimulator2D(const PathSimulator2D& other);
     PathSimulator2D& operator=(const PathSimulator2D& other);
