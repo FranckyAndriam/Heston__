@@ -1,7 +1,7 @@
 #ifndef VARIANCE_H
 #define VARIANCE_H
 
-#include <random>  // For std::mt19937 random number generator
+#include <random>  // For random number generator
 
 // Abstract base class representing a variance process discretization scheme
 class Variance {
