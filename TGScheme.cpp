@@ -2,7 +2,7 @@
 #include "TGScheme.h"
 #include <cmath>
 #include <algorithm>
-
+//salur ejkn
 TGScheme::TGScheme(double psi_min, double psi_max, int grid_size)
     : psi_min_(psi_min), psi_max_(psi_max), grid_size_(grid_size) {
     initialize_grid();
