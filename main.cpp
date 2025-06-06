@@ -2,10 +2,8 @@
 #include <vector>
 #include <fstream>
 #include <cmath>
-#include <iomanip> // pour précision CSV
+#include <iomanip>
 
-// Inclusions headers projet
-#include "QEScheme.h"
 #include "TGScheme.h"
 #include "BroadieKayaScheme.h"
 #include "PathSimulator2D.h"
@@ -23,78 +21,69 @@ int main() {
     double gamma1 = 0.5;
     double gamma2 = 0.5;
     double psi_c = 1.5;
+    double S0 = 100.0;
+    double V0 = 0.04;
+    double T = 1.0;
     double risk_free_rate = r;
     Call_Put option_type = Call_Put::Call;
+    size_t steps = 100;
 
-    // === Grilles d'exploration ===
-    std::vector<double> strikes = { 90, 100, 110};      // K
-    std::vector<double> maturities = { 0.5, 1.0, 2.0 };     // T
-    std::vector<double> S0_list = { 90, 100, 110 };      // S0
-    std::vector<double> V0_list = { 0.02, 0.04, 0.06 };  // V0
+    // === Liste des strikes ===
+    std::vector<double> strike_list = { 70.0, 100.0, 140.0 };
 
-    // === Setup schéma QE (toujours le même objet) ===
-    QEScheme qe_scheme(psi_c);
-    const Variance* variance_scheme = &qe_scheme;
+    // === Nombre de simulations à tester ===
+    std::vector<size_t> num_sim_list = { 10, 100, 1000, 10000, 50000, 100000 };
 
-    // === Fichier CSV au nom explicite ===
-    std::ofstream file("comparaison_QE_vs_Fourier_by_K_T_S0_V0.csv");
-    file << "S0,V0,Strike,Maturity,MC_Price,Fourier_Price,Absolute_Error,Relative_Error\n";
+    // === Grille temporelle (fixe) ===
+    std::vector<double> time_points(steps + 1);
+    for (size_t i = 0; i <= steps; ++i)
+        time_points[i] = T * i / steps;
+
+    // === Schéma TG initialisé ===
+    TGScheme tg_scheme;
+    const Variance* variance_scheme = &tg_scheme;
+
+    // === Fichier CSV d'export ===
+    std::ofstream file("TG_vs_Fourier_by_numSim_per_strike.csv");
+    file << "Strike,NumSim,MC_Price,Fourier_Price,Absolute_Error,Relative_Error\n";
     file << std::fixed << std::setprecision(6);
 
-    for (double S0 : S0_list) {
-        for (double V0 : V0_list) {
-            for (double K : strikes) {
-                for (double T : maturities) {
-                    // --- Redéfinit la grille de temps pour cette maturité
-                    size_t steps = static_cast<size_t>(252 * T); // pour dt ~ 1/252
-                    std::vector<double> time_points(steps + 1);
-                    for (size_t i = 0; i <= steps; ++i) {
-                        time_points[i] = T * i / steps;
-                    }
+    // === Boucles sur strikes et nombre de simulations ===
+    for (size_t i = 0; i < strike_list.size(); ++i) {
+        double strike = strike_list[i];
 
-                    // --- Modèle Broadie-Kaya
-                    BroadieKayaScheme heston_model(
-                        kappa, theta, epsilon, rho, r,
-                        gamma1, gamma2, variance_scheme
-                    );
-                    PathSimulator2D path_sim(time_points, S0, V0, heston_model);
+        // Modèle et payoff fixe pour strike courant
+        BroadieKayaScheme heston_model(kappa, theta, epsilon, rho, r, gamma1, gamma2, variance_scheme);
+        PathSimulator2D path_sim(time_points, S0, V0, heston_model);
+        EuropeanOptionPayoff payoff(risk_free_rate, strike, option_type);
 
-                    // --- Payoff européen
-                    EuropeanOptionPayoff payoff(risk_free_rate, K, option_type);
+        // Prix exact via Fourier (indépendant de num_sim)
+        FourierPricer fourier(S0, V0, kappa, theta, epsilon, rho, T, strike);
+        double fourier_price = fourier.computePrice(8000, 100.0);
 
-                    // --- Pricing Monte Carlo (QE)
-                    size_t num_sim = 10000;
-                    MonteCarlo mc(num_sim, path_sim, payoff);
-                    double mc_price = mc.price();
+        for (size_t j = 0; j < num_sim_list.size(); ++j) {
+            size_t num_sim = num_sim_list[j];
 
-                    // --- Pricing exact Fourier
-                    FourierPricer analytic_pricer(
-                        S0, V0, kappa, theta, epsilon, rho, T, K
-                    );
-                    double analytic_price = analytic_pricer.computePrice(8000, 100.0);
+            MonteCarlo mc(num_sim, path_sim, payoff);
+            double mc_price = mc.price();
 
-                    // --- Erreur
-                    double abs_error = std::abs(mc_price - analytic_price);
-                    double rel_error = (analytic_price != 0.0) ? abs_error / analytic_price : 0.0;
+            double abs_err = std::abs(mc_price - fourier_price);
+            double rel_err = abs_err / fourier_price;
 
-                    // --- Écriture CSV
-                    file << S0 << "," << V0 << "," << K << "," << T << ","
-                        << mc_price << "," << analytic_price << ","
-                        << abs_error << "," << rel_error << "\n";
+            file << strike << "," << static_cast<unsigned long long>(num_sim) << ","
+                << mc_price << "," << fourier_price << ","
+                << abs_err << "," << rel_err << "\n";
 
-                    // Affichage pour suivi
-                    std::cout << "S0=" << S0 << " V0=" << V0
-                        << " K=" << K << " T=" << T
-                        << "  MC=" << mc_price
-                        << "  Fourier=" << analytic_price
-                        << "  AbsErr=" << abs_error
-                        << "  RelErr=" << rel_error << std::endl;
-                }
-            }
+            std::cout << "Strike=" << strike
+                << " | NumSim=" << static_cast<unsigned long long>(num_sim)
+                << " | MC=" << mc_price
+                << " | Fourier=" << fourier_price
+                << " | AbsErr=" << abs_err
+                << " | RelErr=" << rel_err << "\n";
         }
     }
 
     file.close();
-    std::cout << "\nRésultats enregistrés dans comparaison_QE_vs_Fourier_by_K_T_S0_V0.csv\n";
+    std::cout << "\nRésultats sauvegardés dans TG_vs_Fourier_by_numSim_per_strike.csv\n";
     return 0;
 }
