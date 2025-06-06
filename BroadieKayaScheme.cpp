@@ -50,7 +50,6 @@ std::pair<double, double> BroadieKayaScheme::step(double St, double Vt, double d
 }
 
 // Clone method to duplicate a BroadieKayaScheme object
-// Note: the variance scheme is copied by pointer, so it is a shallow copy
 BroadieKayaScheme* BroadieKayaScheme::clone() const {
     return new BroadieKayaScheme(kappa, theta, epsilon, rho, r, gamma1, gamma2, _variance_scheme);
 }
